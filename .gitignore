@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# next build
+.next/
+out/
+
+# backend build
+dist/
+build/
+
+# logs
+*.log
+
+# env
+.env
+.env.*
+!.env.example
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# prisma local files if needed
+prisma/dev.db
+
+# uploads/temp
+uploads/
+tmp/
+
