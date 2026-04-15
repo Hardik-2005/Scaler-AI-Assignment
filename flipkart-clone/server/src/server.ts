@@ -17,6 +17,30 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: { images: true, category: true }
+    });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const product = await prisma.product.findUnique({
+      where: { slug: req.params.id },
+      include: { images: true, category: true }
+    });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
 // Create Order Route
 app.post('/api/orders', async (req, res) => {
   try {

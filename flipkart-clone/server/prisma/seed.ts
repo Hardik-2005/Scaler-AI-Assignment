@@ -45,8 +45,32 @@ const SEED_PRODUCTS = [
       'https://images.unsplash.com/photo-1601784551446-20c9e07cddea?w=800&q=80'
     ]
   },
-  // Add 48 more products exactly following this structure...
-];
+  ];
+
+const extraBrands = ['Apple', 'Samsung', 'Sony', 'Nike', 'Puma', 'IKEA', 'LG', 'Philips', 'Adidas', 'Dell'];
+const extraCategories = ['mobiles', 'electronics', 'fashion', 'home'];
+const baseImg = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80';
+
+for (let i = 3; i <= 50; i++) {
+  const brand = extraBrands[i % extraBrands.length] || 'Apple';
+  const cat = extraCategories[i % extraCategories.length] || 'mobiles';
+  SEED_PRODUCTS.push({
+    categorySlug: cat,
+    name: `${brand} Standard Series ${i} (Pro Edition)`,
+    slug: `${brand.toLowerCase()}-standard-series-${i}-pro`,
+    brand: brand,
+    description: `Experience the finest quality ${cat} from ${brand}. Combining modern design with reliable performance.`,
+    price: 1599 + (i * 200),
+    originalPrice: 1999 + (i * 200),
+    discount: 5 + (i % 30),
+    rating: 4.0 + ((i % 10) / 10),
+    stock: 15 + i,
+    images: [
+      baseImg,
+      'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80'
+    ]
+  });
+}
 
 async function main() {
   console.log(`Start seeding ...`);
@@ -73,7 +97,17 @@ async function main() {
     if (category) {
       const product = await prisma.product.upsert({
         where: { slug: prodData.slug },
-        update: {},
+        update: {
+          categoryId: category.id,
+          name: prodData.name,
+          brand: prodData.brand,
+          description: prodData.description,
+          price: prodData.price,
+          originalPrice: prodData.originalPrice,
+          discount: prodData.discount,
+          rating: prodData.rating,
+          stock: prodData.stock,
+        },
         create: {
           categoryId: category.id,
           name: prodData.name,
@@ -85,15 +119,23 @@ async function main() {
           discount: prodData.discount,
           rating: prodData.rating,
           stock: prodData.stock,
-          images: {
-            create: prodData.images.map((url, i) => ({
-              url,
-              isPrimary: i === 0
-            }))
-          }
         }
       });
-      console.log(`Created product: ${product.name}`);
+
+      // Clear existing images and recreate to ensure idempotency
+      await prisma.productImage.deleteMany({
+        where: { productId: product.id }
+      });
+
+      await prisma.productImage.createMany({
+        data: prodData.images.map((url, i) => ({
+          productId: product.id,
+          url,
+          isPrimary: i === 0
+        }))
+      });
+      
+      console.log(`Upserted product: ${product.name}`);
     }
   }
   console.log(`Seeding finished.`);
