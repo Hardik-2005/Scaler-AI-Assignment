@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: flipkart_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: flipkart_clone
+      MYSQL_USER: flipkart_user
+      MYSQL_PASSWORD: flipkart_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: flipkart_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql://flipkart_user:flipkart_password@mysql:3306/flipkart_clone
+      - PORT=5000
+    env_file:
+      - .env.docker
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app
+      - /app/node_modules # prevents local node_modules from conflicting with the container's
+    depends_on:
+      mysql:
+        condition: service_healthy # Wait for MySQL to be ready
+    # Generates Prisma client, pushes schema directly to DB, applies seed, then runs dev
+    command: sh -c "npx prisma generate && npx prisma db push && npm run seed || true && npm run dev"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: flipkart_frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    env_file:
+      - .env.docker
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - /app/node_modules # avoid conflicts with host node_modules
+      - /app/.next # keep build outputs off host for performance
+    depends_on:
+      - backend
+    # Fallback start command for the frontend
+    command: sh -c "npm run dev -- -H 0.0.0.0"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '1.5'
+
+volumes:
+  mysql_data:

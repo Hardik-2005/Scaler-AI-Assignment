@@ -48,9 +48,9 @@ app.post('/api/orders', async (req, res) => {
           status: 'PENDING',
           items: {
             create: items.map((item: any) => ({
-              productId: item.id || item.productId,
-              quantity: item.quantity,
-              price: item.price
+              productId: parseInt((item.id || item.productId).toString(), 10),
+              quantity: parseInt(item.quantity.toString(), 10),
+              price: parseFloat(item.price.toString())
             }))
           }
         },
